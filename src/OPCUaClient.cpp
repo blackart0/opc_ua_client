@@ -135,17 +135,20 @@ MyFrame::MyFrame() : wxFrame(NULL, wxID_ANY, L"KEPServerEX6Client", wxDefaultPos
 	m_gridObjs->EnableEditing(false);
 
 	//m_gridItems
-	m_gridItems = new wxGrid(panel1, wxID_ANY, wxDefaultPosition, wxDefaultSize);
-	m_gridItems->SetFont(*m_Font);
-	m_gridItems->SetDefaultCellFont(*m_Font);
-	m_gridItems->CreateGrid(30, 20);
-	m_gridItems->SetMinSize(wxSize(320, 100));
-	m_gridItems->SetRowLabelSize(50);
-	m_gridItems->SetLabelBackgroundColour(wxColour(0xe9e4c1));
-	m_gridItems->EnableEditing(false);
+	//m_gridItems = new wxGrid(panel1, wxID_ANY, wxDefaultPosition, wxDefaultSize);
+	//m_gridItems->SetFont(*m_Font);
+	//m_gridItems->SetDefaultCellFont(*m_Font);
+	//m_gridItems->CreateGrid(30, 20);
+	//m_gridItems->SetMinSize(wxSize(320, 100));
+	//m_gridItems->SetRowLabelSize(50);
+	//m_gridItems->SetLabelBackgroundColour(wxColour(0xe9e4c1));
+	//m_gridItems->EnableEditing(false);
+	m_treeCtrl = new wxTreeCtrl(panel1, wxID_ANY, wxDefaultPosition, wxSize(200, -1), wxTR_HAS_BUTTONS | wxTR_LINES_AT_ROOT);
+	m_treeCtrl->SetFont(*m_Font);
+	TreeAddNodes();
 
 	sizerRow1->Add(m_gridObjs, 0, wxEXPAND | wxALL, 10);
-	sizerRow1->Add(m_gridItems, 1, wxEXPAND | wxALL, 10);
+	sizerRow1->Add(m_treeCtrl, 1, wxEXPAND | wxALL, 10);
 	panelsizer1->Add(sizerRow1, 1, wxEXPAND | wxALL, 10);
 	panelsizer1->Add(sizerRow, 0, wxEXPAND | wxALL, 10);
 	panel1->SetSizer(panelsizer1);
@@ -354,3 +357,27 @@ void MyFrame::OnBtnGetValue(wxCommandEvent& event)
 //	}
 //	cout << "OPC_test更改为 :" << OPC_test << endl;
 //}
+
+void MyFrame::TreeAddNodes()
+{
+	// 添加根节点  
+	wxTreeItemId rootId = m_treeCtrl->AddRoot("Root Node");
+
+	// 添加子节点到根节点  
+	wxTreeItemId childNode1 = m_treeCtrl->AppendItem(rootId, "Child 1");
+	wxTreeItemId childNode2 = m_treeCtrl->AppendItem(rootId, "Child 2");
+
+	// 为子节点添加子节点（孙子节点）  
+	wxTreeItemId sunNode1 = m_treeCtrl->AppendItem(childNode1, "Grandchild 1-1");
+	wxTreeItemId sunNode2 = m_treeCtrl->AppendItem(childNode2, "Grandchild 2-1");
+	wxTreeItemId sunNode3 = m_treeCtrl->AppendItem(childNode2, "Grandchild 2-2");
+	// 为孙子节点添加子节点（重孙子节点）
+	m_treeCtrl->AppendItem(sunNode1, "Grandchild 1-1-1");
+	m_treeCtrl->AppendItem(sunNode1, "Grandchild 1-1-2");
+	m_treeCtrl->AppendItem(sunNode2, "Grandchild 2-1-1");
+	m_treeCtrl->AppendItem(sunNode2, "Grandchild 2-1-2");
+	m_treeCtrl->AppendItem(sunNode3, "Grandchild 2-2-1");
+	m_treeCtrl->AppendItem(sunNode3, "Grandchild 2-2-2");
+	// 展开根节点，以便可以看到所有的子节点  
+	m_treeCtrl->Expand(rootId);
+}

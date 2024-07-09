@@ -20,6 +20,7 @@
 #include <wx/graphics.h>
 #include <wx/grid.h>
 #include <wx/notebook.h>
+#include <wx/treectrl.h>
 
 #include "open62541.h"
 
@@ -43,7 +44,7 @@ private:
     void OnBtnGetValue(wxCommandEvent& event);
 
     void Browse_nodes(UA_Client* client, UA_NodeId nodeId);
-
+    void TreeAddNodes();
     UA_Client* m_uaClient = nullptr;
     int m_iFontSize = 9;
     wxString m_sHost = "";
@@ -59,6 +60,7 @@ private:
     wxTextCtrl* m_text = nullptr;
     wxTextCtrl* m_textHost = nullptr;
     wxTextCtrl* m_textPort = nullptr;
+    wxTreeCtrl* m_treeCtrl = nullptr;
 };
 
 enum enum_EVENTID
