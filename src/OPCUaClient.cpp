@@ -134,18 +134,9 @@ MyFrame::MyFrame() : wxFrame(NULL, wxID_ANY, L"KEPServerEX6Client", wxDefaultPos
 	m_gridObjs->SetLabelBackgroundColour(wxColour(0xe9e4c1));
 	m_gridObjs->EnableEditing(false);
 
-	//m_gridItems
-	//m_gridItems = new wxGrid(panel1, wxID_ANY, wxDefaultPosition, wxDefaultSize);
-	//m_gridItems->SetFont(*m_Font);
-	//m_gridItems->SetDefaultCellFont(*m_Font);
-	//m_gridItems->CreateGrid(30, 20);
-	//m_gridItems->SetMinSize(wxSize(320, 100));
-	//m_gridItems->SetRowLabelSize(50);
-	//m_gridItems->SetLabelBackgroundColour(wxColour(0xe9e4c1));
-	//m_gridItems->EnableEditing(false);
 	m_treeCtrl = new wxTreeCtrl(panel1, wxID_ANY, wxDefaultPosition, wxSize(200, -1), wxTR_HAS_BUTTONS | wxTR_LINES_AT_ROOT);
 	m_treeCtrl->SetFont(*m_Font);
-	TreeAddNodes();
+	//TreeAddNodes();
 
 	sizerRow1->Add(m_gridObjs, 0, wxEXPAND | wxALL, 10);
 	sizerRow1->Add(m_treeCtrl, 1, wxEXPAND | wxALL, 10);
@@ -178,6 +169,8 @@ MyFrame::MyFrame() : wxFrame(NULL, wxID_ANY, L"KEPServerEX6Client", wxDefaultPos
 	Bind(wxEVT_BUTTON, &MyFrame::OnBtnBrowse, this, ID_Btn_Browse);
 	Bind(wxEVT_BUTTON, &MyFrame::OnBtnGetValue, this, ID_Btn_GetValue);
 	Bind(wxEVT_BUTTON, &MyFrame::OnExit, this, wxID_EXIT);
+
+	m_treeCtrl->Bind(wxEVT_TREE_SEL_CHANGED, &MyFrame::OnTreeSelChanged, this);
 }
 
 void MyFrame::OnExit(wxCommandEvent& event)
@@ -225,11 +218,14 @@ void MyFrame::OnBtnConnect(wxCommandEvent& event)
 void MyFrame::OnBtnBrowse(wxCommandEvent& event)
 {
 	//Browse_nodes(m_uaClient, UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER));
-	//Browse_nodes(m_uaClient, UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER));
-	char sNodeID[1024] = "xpy.DK";
-	Browse_nodes(m_uaClient, UA_NODEID_STRING(2, sNodeID));
+
+	wxTreeItemId rootId = m_treeCtrl->AddRoot("OBJECTS");
+	Browse_nodes(m_uaClient, UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER), rootId);
+	m_treeCtrl->Expand(rootId);
+	//char sNodeID[1024] = "xpy.DK";
+	//Browse_nodes(m_uaClient, UA_NODEID_STRING(2, sNodeID));
 }
-void MyFrame::Browse_nodes(UA_Client* client, UA_NodeId nodeId)
+void MyFrame::Browse_nodes(UA_Client* client, UA_NodeId nodeId, wxTreeItemId itemId)
 {
 	UA_BrowseRequest bReq;
 	UA_BrowseRequest_init(&bReq); // 初始化bReq
@@ -268,6 +264,7 @@ void MyFrame::Browse_nodes(UA_Client* client, UA_NodeId nodeId)
 		m_gridObjs->SetColSize(2, 80);
 		//m_gridObjs->HideCol(1);
 		// 打印遍历结果
+
 		char s1[1024] = { "\0" };
 		char s2[1024] = { "\0" };
 		for (size_t i = 0; i < bResp.resultsSize; ++i) {
@@ -290,13 +287,15 @@ void MyFrame::Browse_nodes(UA_Client* client, UA_NodeId nodeId)
 					m_gridObjs->SetCellValue(j, 0, wxString::Format(L"%d", ref->nodeId.nodeId.namespaceIndex));
 					m_gridObjs->SetCellValue(j, 1, wxString::FromUTF8(s1));
 					m_gridObjs->SetCellValue(j, 2, wxString::FromUTF8(s2));
+
+					wxTreeItemId childNode1 = m_treeCtrl->AppendItem(itemId, wxString::FromUTF8(s1));
 				}
 			}
 		}
 	}
 
+	UA_BrowseRequest_clear(&bReq);
 	UA_BrowseResponse_clear(&bResp);
-	//UA_BrowseRequest_clear(&bReq);
 }
 void MyFrame::OnBtnGetValue(wxCommandEvent& event)
 {
@@ -380,4 +379,30 @@ void MyFrame::TreeAddNodes()
 	m_treeCtrl->AppendItem(sunNode3, "Grandchild 2-2-2");
 	// 展开根节点，以便可以看到所有的子节点  
 	m_treeCtrl->Expand(rootId);
+}
+
+void MyFrame::OnTreeSelChanged(wxTreeEvent& event)
+{
+	// 获取当前选中的节点  
+	wxTreeItemId selectedItemId = event.GetItem();
+	if (!selectedItemId.IsOk())
+		return; // 没有选中的节点  
+
+	// 获取当前选中节点的文本（假设节点值存储在文本中）  
+	wxString selectedText = m_treeCtrl->GetItemText(selectedItemId);
+
+	// 可以在这里添加一些逻辑来处理或显示 selectedText  
+	// ...  
+	char sNodeID[1024] = {'\0'};
+	memcpy_s(sNodeID, 1024, selectedText.c_str(), selectedText.length());
+
+	Browse_nodes(m_uaClient, UA_NODEID_STRING(2, sNodeID), selectedItemId);
+	// 在选中节点下添加子节点  
+	//wxTreeItemId newItemId = m_treeCtrl->AppendItem(selectedItemId, wxT("新子节点"));
+
+	// 可选：设置新子节点的其他属性，如图像、数据等  
+	// ...  
+
+	// 展开包含新子节点的父节点  
+	m_treeCtrl->Expand(selectedItemId);
 }

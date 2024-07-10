@@ -42,8 +42,9 @@ private:
     void OnBtnConnect(wxCommandEvent& event);
     void OnBtnBrowse(wxCommandEvent& event);
     void OnBtnGetValue(wxCommandEvent& event);
+    void OnTreeSelChanged(wxTreeEvent& event);
 
-    void Browse_nodes(UA_Client* client, UA_NodeId nodeId);
+    void Browse_nodes(UA_Client* client, UA_NodeId nodeId, wxTreeItemId itemId);
     void TreeAddNodes();
     UA_Client* m_uaClient = nullptr;
     int m_iFontSize = 9;
