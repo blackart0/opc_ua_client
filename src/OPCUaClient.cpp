@@ -209,7 +209,8 @@ void MyFrame::OnBtnConnect(wxCommandEvent& event)
 		return;
 	}
 	else {
-		m_treeCtrl->AddRoot("OBJECTS");
+		GetServerName();
+		//m_treeCtrl->AddRoot("OBJECTS");
 		m_btnBrowse->Enable();
 		m_btnGetValue->Enable();
 		wxLogMessage(wxString::Format(L"UA_Client_connect opc.tcp://%s:%s successed!", m_sHost, m_sPort));
@@ -314,6 +315,7 @@ void MyFrame::Browse_nodes(UA_Client* client, UA_NodeId nodeId, wxTreeItemId ite
 }
 void MyFrame::OnBtnGetValue(wxCommandEvent& event)
 {
+	//---------------------------------------------------------------------------------------------------------------------------------
 	/* Read the value attribute of the node. UA_Client_readValueAttribute is a
 	 * wrapper for the raw read service available as UA_Client_Service_read. */
 	UA_StatusCode status;
@@ -332,23 +334,10 @@ void MyFrame::OnBtnGetValue(wxCommandEvent& event)
 	else {
 		wxLogMessage(L"XPY.DK.R101 未取到数据(信号非GOOD)");
 	}
-
-	status = UA_Client_readValueAttribute(m_uaClient, UA_NODEID_NUMERIC(0, 2254), &value);
-	if (status == UA_STATUSCODE_GOOD) {
-		if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_STRING])) {
-			
-			UA_String sss = *(UA_String*)value.data;
-			memcpy_s(node_name_cc1, 1024, sss.data, sss.length);
-			wxLogMessage(wxString::Format(L"the \"ServerArray \" value is: %s", wxString::FromUTF8(node_name_cc1)));
-		}
-		else {
-			wxLogMessage(L"\"ServerArray\" 获取到数据，但数据类型不匹配");
-		}
-	}
-	else {
-		wxLogMessage(L"\"ServerArray\" 未取到数据(信号非GOOD)");
-	}
-
+	UA_BuildInfo;
+	//---------------------------------------------------------------------------------------------------------------------------------
+	// 0,2260,name:BuildInfo,UA_BuildInfo,type:UA_TYPES_BUILDINFO
+	//---------------------------------------------------------------------------------------------------------------------------------
 	char node_name_cc2[1024] = "_System._DateTimeLocal";
 	status = UA_Client_readValueAttribute(m_uaClient, UA_NODEID_STRING(2, node_name_cc2), &value);
 	if (status == UA_STATUSCODE_GOOD) {
@@ -366,120 +355,30 @@ void MyFrame::OnBtnGetValue(wxCommandEvent& event)
 
 	// Clean up 
 	UA_Variant_clear(&value);
-	//GetServerName();
-	// ------------------------------------------------------------------------------------------------
-	//UA_ServerOnNetwork* serverOnNetwork = NULL;
-	//size_t serverOnNetworkSize = 0;
-
-	//m_sHost = m_textHost->GetValue();
-	//m_sPort = m_textPort->GetValue();
-
-	//UA_Client* client = UA_Client_new();
-	//UA_ClientConfig_setDefault(UA_Client_getConfig(client));
-	//wxString url = wxString::Format(L"opc.tcp://%s:%s", m_sHost, m_sPort);
-
-	//UA_StatusCode retval = UA_Client_findServersOnNetwork(client, url.ToUTF8().data(), 0, 0, 0, NULL, &serverOnNetworkSize, &serverOnNetwork);
-	//if (retval != UA_STATUSCODE_GOOD) {
-	//	UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER,
-	//		"Could not call FindServersOnNetwork service. "
-	//		"Is the discovery server started? StatusCode %s",
-	//		UA_StatusCode_name(retval));
-	//	UA_Client_delete(client);
-	//	return;
-	//}
-
-	//// output all the returned/registered servers
-	//for (size_t i = 0; i < serverOnNetworkSize; i++) {
-	//	UA_ServerOnNetwork* server = &serverOnNetwork[i];
-	//	printf("Server[%lu]: %.*s", (unsigned long)i, (int)server->serverName.length, server->serverName.data);
-	//	printf("\n\tRecordID: %u", server->recordId);
-	//	printf("\n\tDiscovery URL: %.*s", (int)server->discoveryUrl.length, server->discoveryUrl.data);
-	//	printf("\n\tCapabilities: ");
-	//	for (size_t j = 0; j < server->serverCapabilitiesSize; j++) {
-	//		printf("%.*s,", (int)server->serverCapabilities[j].length, server->serverCapabilities[j].data);
-	//	}
-	//	printf("\n\n");
-	//}
-
-	//UA_Array_delete(serverOnNetwork, serverOnNetworkSize, &UA_TYPES[UA_TYPES_SERVERONNETWORK]);
-	//UA_Client_delete(client);
 
 }
 
 void MyFrame::GetServerName()
 {
-	//Browse_nodes(m_uaClient, UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER));
-	UA_BrowseRequest bReq;
-	UA_BrowseRequest_init(&bReq); // 初始化bReq
-	bReq.requestedMaxReferencesPerNode = 0; // 限制查到的最大节点数，0 不限制
-	//UA_BROWSEDIRECTION_FORWARD表示向下查找（即查找添加在节点下的节点），
-	//UA_BROWSEDIRECTION_INVERSE表示向上查找（即查找节点的父节点），
-	//UA_BROWSEDIRECTION_BOTH表示上下都进行查找
-	bReq.nodesToBrowse = UA_BrowseDescription_new(); // 分配内存，并把地址赋给bReq.nodesToBrowse
-	bReq.nodesToBrowse[0].browseDirection = UA_BROWSEDIRECTION_FORWARD;
-	bReq.nodesToBrowse[0].includeSubtypes = UA_TRUE;//是否包含subtypes
-
-	bReq.nodesToBrowseSize = 1; // 遍历的起始节点数量
-	bReq.nodesToBrowse[0].nodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER); // 遍历 nodeId 下的目录
-	bReq.nodesToBrowse[0].nodeClassMask = UA_NODECLASS_OBJECT | UA_NODECLASS_VARIABLE | UA_NODECLASS_METHOD; // 只查看对象，变量和方法节点
-	bReq.nodesToBrowse[0].resultMask = UA_BROWSERESULTMASK_ALL; //返回浏览到的节点包含的信息，名称、显示名称......，UA_BROWSERESULTMASK_ALL表示返回所有信息
-
-
-	int rows = m_gridObjs->GetNumberRows();
-	int cols = m_gridObjs->GetNumberCols();
-	if (rows > 0) {
-		m_gridObjs->DeleteRows(0, rows);
-	}
-	if (cols > 0) {
-		m_gridObjs->DeleteCols(0, cols);
-	}
-
-	UA_BrowseResponse bResp = UA_Client_Service_browse(m_uaClient, bReq); // 开始遍历
-	if (bResp.responseHeader.serviceResult == UA_STATUSCODE_GOOD) // 判断遍历结果
-	{
-		m_gridObjs->AppendCols(3);
-		m_gridObjs->SetColLabelValue(0, L"Index");
-		m_gridObjs->SetColLabelValue(1, L"nodeID");
-		m_gridObjs->SetColLabelValue(2, L"BROWSE NAME");
-		m_gridObjs->SetColSize(0, 30);
-		m_gridObjs->SetColSize(1, 110);
-		m_gridObjs->SetColSize(2, 80);
-		//m_gridObjs->HideCol(1);
-		// 打印遍历结果
-
-		char s1[1024] = { "\0" };
-		char s2[1024] = { "\0" };
-		for (size_t i = 0; i < bResp.resultsSize; ++i) {
-			for (size_t j = 0; j < bResp.results[i].referencesSize; ++j) {
-				UA_ReferenceDescription* ref = &(bResp.results[i].references[j]);
-				m_gridObjs->AppendRows();
-				if (ref->nodeId.nodeId.identifierType == UA_NODEIDTYPE_NUMERIC) {
-					memset(s1, 0, 1024);
-					memcpy_s(s1, 1024, ref->browseName.name.data, (int)ref->browseName.name.length);
-					m_gridObjs->SetCellValue(j, 0, wxString::Format(L"%d", (int)ref->nodeId.nodeId.namespaceIndex));
-					m_gridObjs->SetCellValue(j, 1, wxString::Format(L"%d", (int)ref->nodeId.nodeId.identifier.numeric));
-					m_gridObjs->SetCellValue(j, 2, wxString::FromUTF8(s1));
-				}
-				else if (ref->nodeId.nodeId.identifierType == UA_NODEIDTYPE_STRING) {
-					memset(s1, 0, 1024);
-					memset(s2, 0, 1024);
-					memcpy_s(s1, 1024, ref->nodeId.nodeId.identifier.string.data, (int)ref->nodeId.nodeId.identifier.string.length);
-					memcpy_s(s2, 1024, ref->browseName.name.data, (int)ref->browseName.name.length);
-
-					m_gridObjs->SetCellValue(j, 0, wxString::Format(L"%d", ref->nodeId.nodeId.namespaceIndex));
-					m_gridObjs->SetCellValue(j, 1, wxString::FromUTF8(s1));
-					m_gridObjs->SetCellValue(j, 2, wxString::FromUTF8(s2));
-
-					//wxTreeItemId childNode1 = m_treeCtrl->AppendItem(itemId, wxString::FromUTF8(s1));
-				}
-			}
+	UA_StatusCode status;
+	UA_Variant value; /* Variants can hold scalar values and arrays of any type */
+	UA_Variant_init(&value);
+	char server_name[1024] = { '\0' };
+	status = UA_Client_readValueAttribute(m_uaClient, UA_NODEID_NUMERIC(0, 2254), &value);
+	if (status == UA_STATUSCODE_GOOD) {
+		if (UA_Variant_hasArrayType(&value, &UA_TYPES[UA_TYPES_STRING])) {
+			UA_String sss = *(UA_String*)value.data;
+			memcpy_s(server_name, 1024, sss.data, sss.length - 9);
+			m_treeCtrl->AddRoot(wxString::FromUTF8(server_name));
+			wxLogMessage(wxString::FromUTF8(server_name));
+		}
+		else {
+			wxLogMessage(L"\"ServerArray\" 获取到数据，但数据类型不匹配");
 		}
 	}
-
-	UA_BrowseRequest_clear(&bReq);
-
-	UA_BrowseResponse_clear(&bResp);
-
+	else {
+		wxLogMessage(L"\"ServerArray\" 未取到数据(信号非GOOD)");
+	}
 }
 
 void MyFrame::OnTreeSelChanged(wxTreeEvent& event)
