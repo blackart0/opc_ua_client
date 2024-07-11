@@ -316,7 +316,7 @@ void MyFrame::OnBtnGetValue(wxCommandEvent& event)
 		}
 	}
 	else {
-		wxLogMessage(L"XPY.DK.R101 未取到数据");
+		wxLogMessage(L"XPY.DK.R101 未取到数据(信号非GOOD)");
 	}
 
 	char node_name_cc2[] = "_System._DateTimeLocal";
@@ -331,7 +331,7 @@ void MyFrame::OnBtnGetValue(wxCommandEvent& event)
 		}
 	}
 	else {
-		wxLogMessage(L"_System._DateTimeLocal 未取到数据");
+		wxLogMessage(L"_System._DateTimeLocal 未取到数据(信号非GOOD)");
 	}
 
 	/* Clean up */
