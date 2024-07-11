@@ -136,10 +136,9 @@ MyFrame::MyFrame() : wxFrame(NULL, wxID_ANY, L"KEPServerEX6Client", wxDefaultPos
 
 	m_treeCtrl = new wxTreeCtrl(panel1, wxID_ANY, wxDefaultPosition, wxSize(200, -1), wxTR_HAS_BUTTONS | wxTR_LINES_AT_ROOT);
 	m_treeCtrl->SetFont(*m_Font);
-	//TreeAddNodes();
 
-	sizerRow1->Add(m_gridObjs, 0, wxEXPAND | wxALL, 10);
 	sizerRow1->Add(m_treeCtrl, 1, wxEXPAND | wxALL, 10);
+	sizerRow1->Add(m_gridObjs, 0, wxEXPAND | wxALL, 10);
 	panelsizer1->Add(sizerRow1, 1, wxEXPAND | wxALL, 10);
 	panelsizer1->Add(sizerRow, 0, wxEXPAND | wxALL, 10);
 	panel1->SetSizer(panelsizer1);
@@ -180,17 +179,18 @@ void MyFrame::OnExit(wxCommandEvent& event)
 
 void MyFrame::OnAbout(wxCommandEvent& event)
 {
-	wxMessageBox(L"This is a wxWidgets Hello World example!", L"About Hello World", wxOK | wxICON_INFORMATION);
+	wxMessageBox(L"This is a OPC UA Client.", L"About OPCUaClient", wxOK | wxICON_INFORMATION);
 }
 
 void MyFrame::OnHello(wxCommandEvent& event)
 {
-	wxLogMessage(L"Hello world from wxWidgets!");
+	wxLogMessage(L"This is a OPC UA Client!");
 }
 
 void MyFrame::OnBtnConnect(wxCommandEvent& event)
 {
 	if (m_uaClient) {
+		m_treeCtrl->DeleteAllItems();
 		m_btnBrowse->Enable(false);
 		m_btnGetValue->Enable(false);
 		UA_Client_delete(m_uaClient); /* Disconnects the client internally */
@@ -209,6 +209,7 @@ void MyFrame::OnBtnConnect(wxCommandEvent& event)
 		return;
 	}
 	else {
+		m_treeCtrl->AddRoot("OBJECTS");
 		m_btnBrowse->Enable();
 		m_btnGetValue->Enable();
 		wxLogMessage(wxString::Format(L"UA_Client_connect opc.tcp://%s:%s successed!", m_sHost, m_sPort));
@@ -217,16 +218,28 @@ void MyFrame::OnBtnConnect(wxCommandEvent& event)
 
 void MyFrame::OnBtnBrowse(wxCommandEvent& event)
 {
-	//Browse_nodes(m_uaClient, UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER));
-
-	wxTreeItemId rootId = m_treeCtrl->AddRoot("OBJECTS");
-	Browse_nodes(m_uaClient, UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER), rootId);
-	m_treeCtrl->Expand(rootId);
-	//char sNodeID[1024] = "xpy.DK";
-	//Browse_nodes(m_uaClient, UA_NODEID_STRING(2, sNodeID));
+	wxTreeItemId rootId = m_treeCtrl->GetRootItem();
+	if (rootId.IsOk()) {
+		int childCount = m_treeCtrl->GetChildrenCount(rootId);
+		if (childCount > 0) {
+			int ret = wxMessageBox(L"是否重新获取数据？", L"刷新数据请求", wxYES_NO | wxNO_DEFAULT | wxICON_QUESTION);
+			if (ret == wxNO) {
+				return;
+			}
+			else {
+				m_treeCtrl->DeleteChildren(rootId);
+			}
+		}
+		Browse_nodes(m_uaClient, UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER), rootId);
+		m_treeCtrl->Expand(rootId);
+	}
 }
 void MyFrame::Browse_nodes(UA_Client* client, UA_NodeId nodeId, wxTreeItemId itemId)
 {
+	//UA_Client_Service_browse + UA_Client_readDataTypeAttribute + UA_Client_readValueAttribute，
+	//	根据nodeclass区分类别，如果是UA_NODECLASS_OBJECT、UA_NODECLASS_VARIABLETYPE则递归调用，
+	//	如果是UA_NODECLASS_VARIABLE则获取数据类型与值，接口封装为递归接口。可遍历所有节点。 
+	//	具体处理需要依据实际需要进行调整不同的类型。
 	UA_BrowseRequest bReq;
 	UA_BrowseRequest_init(&bReq); // 初始化bReq
 	bReq.requestedMaxReferencesPerNode = 0; // 限制查到的最大节点数，0 不限制
@@ -277,6 +290,7 @@ void MyFrame::Browse_nodes(UA_Client* client, UA_NodeId nodeId, wxTreeItemId ite
 					m_gridObjs->SetCellValue(j, 0, wxString::Format(L"%d", (int)ref->nodeId.nodeId.namespaceIndex));
 					m_gridObjs->SetCellValue(j, 1, wxString::Format(L"%d", (int)ref->nodeId.nodeId.identifier.numeric));
 					m_gridObjs->SetCellValue(j, 2, wxString::FromUTF8(s1));
+					wxTreeItemId childNode1 = m_treeCtrl->AppendItem(itemId, wxString::Format(L"%d", (int)ref->nodeId.nodeId.identifier.numeric));
 				}
 				else if (ref->nodeId.nodeId.identifierType == UA_NODEIDTYPE_STRING) {
 					memset(s1, 0, 1024);
@@ -294,7 +308,8 @@ void MyFrame::Browse_nodes(UA_Client* client, UA_NodeId nodeId, wxTreeItemId ite
 		}
 	}
 
-	UA_BrowseRequest_clear(&bReq);
+	//UA_BrowseRequest_clear(&bReq);
+
 	UA_BrowseResponse_clear(&bResp);
 }
 void MyFrame::OnBtnGetValue(wxCommandEvent& event)
@@ -304,7 +319,7 @@ void MyFrame::OnBtnGetValue(wxCommandEvent& event)
 	UA_StatusCode status;
 	UA_Variant value; /* Variants can hold scalar values and arrays of any type */
 	UA_Variant_init(&value);
-	char node_name_cc1[] = "XPY.DK.R0101";
+	char node_name_cc1[1024] = "XPY.DK.R0101"; 
 	status = UA_Client_readValueAttribute(m_uaClient, UA_NODEID_STRING(2, node_name_cc1), &value);
 	if (status == UA_STATUSCODE_GOOD) {
 		if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_INT16])) {
@@ -318,7 +333,23 @@ void MyFrame::OnBtnGetValue(wxCommandEvent& event)
 		wxLogMessage(L"XPY.DK.R101 未取到数据(信号非GOOD)");
 	}
 
-	char node_name_cc2[] = "_System._DateTimeLocal";
+	status = UA_Client_readValueAttribute(m_uaClient, UA_NODEID_NUMERIC(0, 2254), &value);
+	if (status == UA_STATUSCODE_GOOD) {
+		if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_STRING])) {
+			
+			UA_String sss = *(UA_String*)value.data;
+			memcpy_s(node_name_cc1, 1024, sss.data, sss.length);
+			wxLogMessage(wxString::Format(L"the \"ServerArray \" value is: %s", wxString::FromUTF8(node_name_cc1)));
+		}
+		else {
+			wxLogMessage(L"\"ServerArray\" 获取到数据，但数据类型不匹配");
+		}
+	}
+	else {
+		wxLogMessage(L"\"ServerArray\" 未取到数据(信号非GOOD)");
+	}
+
+	char node_name_cc2[1024] = "_System._DateTimeLocal";
 	status = UA_Client_readValueAttribute(m_uaClient, UA_NODEID_STRING(2, node_name_cc2), &value);
 	if (status == UA_STATUSCODE_GOOD) {
 		if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_DATETIME])) {
@@ -333,10 +364,151 @@ void MyFrame::OnBtnGetValue(wxCommandEvent& event)
 		wxLogMessage(L"_System._DateTimeLocal 未取到数据(信号非GOOD)");
 	}
 
-	/* Clean up */
+	// Clean up 
 	UA_Variant_clear(&value);
+	//GetServerName();
+	// ------------------------------------------------------------------------------------------------
+	//UA_ServerOnNetwork* serverOnNetwork = NULL;
+	//size_t serverOnNetworkSize = 0;
+
+	//m_sHost = m_textHost->GetValue();
+	//m_sPort = m_textPort->GetValue();
+
+	//UA_Client* client = UA_Client_new();
+	//UA_ClientConfig_setDefault(UA_Client_getConfig(client));
+	//wxString url = wxString::Format(L"opc.tcp://%s:%s", m_sHost, m_sPort);
+
+	//UA_StatusCode retval = UA_Client_findServersOnNetwork(client, url.ToUTF8().data(), 0, 0, 0, NULL, &serverOnNetworkSize, &serverOnNetwork);
+	//if (retval != UA_STATUSCODE_GOOD) {
+	//	UA_LOG_ERROR(UA_Log_Stdout, UA_LOGCATEGORY_SERVER,
+	//		"Could not call FindServersOnNetwork service. "
+	//		"Is the discovery server started? StatusCode %s",
+	//		UA_StatusCode_name(retval));
+	//	UA_Client_delete(client);
+	//	return;
+	//}
+
+	//// output all the returned/registered servers
+	//for (size_t i = 0; i < serverOnNetworkSize; i++) {
+	//	UA_ServerOnNetwork* server = &serverOnNetwork[i];
+	//	printf("Server[%lu]: %.*s", (unsigned long)i, (int)server->serverName.length, server->serverName.data);
+	//	printf("\n\tRecordID: %u", server->recordId);
+	//	printf("\n\tDiscovery URL: %.*s", (int)server->discoveryUrl.length, server->discoveryUrl.data);
+	//	printf("\n\tCapabilities: ");
+	//	for (size_t j = 0; j < server->serverCapabilitiesSize; j++) {
+	//		printf("%.*s,", (int)server->serverCapabilities[j].length, server->serverCapabilities[j].data);
+	//	}
+	//	printf("\n\n");
+	//}
+
+	//UA_Array_delete(serverOnNetwork, serverOnNetworkSize, &UA_TYPES[UA_TYPES_SERVERONNETWORK]);
+	//UA_Client_delete(client);
 
 }
+
+void MyFrame::GetServerName()
+{
+	//Browse_nodes(m_uaClient, UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER));
+	UA_BrowseRequest bReq;
+	UA_BrowseRequest_init(&bReq); // 初始化bReq
+	bReq.requestedMaxReferencesPerNode = 0; // 限制查到的最大节点数，0 不限制
+	//UA_BROWSEDIRECTION_FORWARD表示向下查找（即查找添加在节点下的节点），
+	//UA_BROWSEDIRECTION_INVERSE表示向上查找（即查找节点的父节点），
+	//UA_BROWSEDIRECTION_BOTH表示上下都进行查找
+	bReq.nodesToBrowse = UA_BrowseDescription_new(); // 分配内存，并把地址赋给bReq.nodesToBrowse
+	bReq.nodesToBrowse[0].browseDirection = UA_BROWSEDIRECTION_FORWARD;
+	bReq.nodesToBrowse[0].includeSubtypes = UA_TRUE;//是否包含subtypes
+
+	bReq.nodesToBrowseSize = 1; // 遍历的起始节点数量
+	bReq.nodesToBrowse[0].nodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER); // 遍历 nodeId 下的目录
+	bReq.nodesToBrowse[0].nodeClassMask = UA_NODECLASS_OBJECT | UA_NODECLASS_VARIABLE | UA_NODECLASS_METHOD; // 只查看对象，变量和方法节点
+	bReq.nodesToBrowse[0].resultMask = UA_BROWSERESULTMASK_ALL; //返回浏览到的节点包含的信息，名称、显示名称......，UA_BROWSERESULTMASK_ALL表示返回所有信息
+
+
+	int rows = m_gridObjs->GetNumberRows();
+	int cols = m_gridObjs->GetNumberCols();
+	if (rows > 0) {
+		m_gridObjs->DeleteRows(0, rows);
+	}
+	if (cols > 0) {
+		m_gridObjs->DeleteCols(0, cols);
+	}
+
+	UA_BrowseResponse bResp = UA_Client_Service_browse(m_uaClient, bReq); // 开始遍历
+	if (bResp.responseHeader.serviceResult == UA_STATUSCODE_GOOD) // 判断遍历结果
+	{
+		m_gridObjs->AppendCols(3);
+		m_gridObjs->SetColLabelValue(0, L"Index");
+		m_gridObjs->SetColLabelValue(1, L"nodeID");
+		m_gridObjs->SetColLabelValue(2, L"BROWSE NAME");
+		m_gridObjs->SetColSize(0, 30);
+		m_gridObjs->SetColSize(1, 110);
+		m_gridObjs->SetColSize(2, 80);
+		//m_gridObjs->HideCol(1);
+		// 打印遍历结果
+
+		char s1[1024] = { "\0" };
+		char s2[1024] = { "\0" };
+		for (size_t i = 0; i < bResp.resultsSize; ++i) {
+			for (size_t j = 0; j < bResp.results[i].referencesSize; ++j) {
+				UA_ReferenceDescription* ref = &(bResp.results[i].references[j]);
+				m_gridObjs->AppendRows();
+				if (ref->nodeId.nodeId.identifierType == UA_NODEIDTYPE_NUMERIC) {
+					memset(s1, 0, 1024);
+					memcpy_s(s1, 1024, ref->browseName.name.data, (int)ref->browseName.name.length);
+					m_gridObjs->SetCellValue(j, 0, wxString::Format(L"%d", (int)ref->nodeId.nodeId.namespaceIndex));
+					m_gridObjs->SetCellValue(j, 1, wxString::Format(L"%d", (int)ref->nodeId.nodeId.identifier.numeric));
+					m_gridObjs->SetCellValue(j, 2, wxString::FromUTF8(s1));
+				}
+				else if (ref->nodeId.nodeId.identifierType == UA_NODEIDTYPE_STRING) {
+					memset(s1, 0, 1024);
+					memset(s2, 0, 1024);
+					memcpy_s(s1, 1024, ref->nodeId.nodeId.identifier.string.data, (int)ref->nodeId.nodeId.identifier.string.length);
+					memcpy_s(s2, 1024, ref->browseName.name.data, (int)ref->browseName.name.length);
+
+					m_gridObjs->SetCellValue(j, 0, wxString::Format(L"%d", ref->nodeId.nodeId.namespaceIndex));
+					m_gridObjs->SetCellValue(j, 1, wxString::FromUTF8(s1));
+					m_gridObjs->SetCellValue(j, 2, wxString::FromUTF8(s2));
+
+					//wxTreeItemId childNode1 = m_treeCtrl->AppendItem(itemId, wxString::FromUTF8(s1));
+				}
+			}
+		}
+	}
+
+	UA_BrowseRequest_clear(&bReq);
+
+	UA_BrowseResponse_clear(&bResp);
+
+}
+
+void MyFrame::OnTreeSelChanged(wxTreeEvent& event)
+{
+	// 获取当前选中的节点  
+	wxTreeItemId selectedItemId = event.GetItem();
+	if (!selectedItemId.IsOk())
+		return; // 没有选中的节点  
+	if (m_treeCtrl->GetChildrenCount(selectedItemId) > 0)
+		return; // 已有子节点
+	// 获取当前选中节点的文本（假设节点值存储在文本中）  
+	wxString selectedText = m_treeCtrl->GetItemText(selectedItemId);
+
+	char sNodeID[1024] = { '\0' };
+	//memcpy_s(sNodeID, 1024, selectedText.c_str(), selectedText.length());
+	wxCharBuffer buffer = selectedText.ToUTF8();
+	strncpy(sNodeID, buffer.data(), strlen(buffer.data()));
+
+	Browse_nodes(m_uaClient, UA_NODEID_STRING(2, sNodeID), selectedItemId);
+	// 在选中节点下添加子节点  
+	//wxTreeItemId newItemId = m_treeCtrl->AppendItem(selectedItemId, wxT("新子节点"));
+
+	// 可选：设置新子节点的其他属性，如图像、数据等  
+	// ...  
+
+	// 展开包含新子节点的父节点  
+	m_treeCtrl->Expand(selectedItemId);
+}
+
 //
 //
 //// 写操作
@@ -357,52 +529,20 @@ void MyFrame::OnBtnGetValue(wxCommandEvent& event)
 //	cout << "OPC_test更改为 :" << OPC_test << endl;
 //}
 
-void MyFrame::TreeAddNodes()
-{
-	// 添加根节点  
-	wxTreeItemId rootId = m_treeCtrl->AddRoot("Root Node");
-
-	// 添加子节点到根节点  
-	wxTreeItemId childNode1 = m_treeCtrl->AppendItem(rootId, "Child 1");
-	wxTreeItemId childNode2 = m_treeCtrl->AppendItem(rootId, "Child 2");
-
-	// 为子节点添加子节点（孙子节点）  
-	wxTreeItemId sunNode1 = m_treeCtrl->AppendItem(childNode1, "Grandchild 1-1");
-	wxTreeItemId sunNode2 = m_treeCtrl->AppendItem(childNode2, "Grandchild 2-1");
-	wxTreeItemId sunNode3 = m_treeCtrl->AppendItem(childNode2, "Grandchild 2-2");
-	// 为孙子节点添加子节点（重孙子节点）
-	m_treeCtrl->AppendItem(sunNode1, "Grandchild 1-1-1");
-	m_treeCtrl->AppendItem(sunNode1, "Grandchild 1-1-2");
-	m_treeCtrl->AppendItem(sunNode2, "Grandchild 2-1-1");
-	m_treeCtrl->AppendItem(sunNode2, "Grandchild 2-1-2");
-	m_treeCtrl->AppendItem(sunNode3, "Grandchild 2-2-1");
-	m_treeCtrl->AppendItem(sunNode3, "Grandchild 2-2-2");
-	// 展开根节点，以便可以看到所有的子节点  
-	m_treeCtrl->Expand(rootId);
-}
-
-void MyFrame::OnTreeSelChanged(wxTreeEvent& event)
-{
-	// 获取当前选中的节点  
-	wxTreeItemId selectedItemId = event.GetItem();
-	if (!selectedItemId.IsOk())
-		return; // 没有选中的节点  
-
-	// 获取当前选中节点的文本（假设节点值存储在文本中）  
-	wxString selectedText = m_treeCtrl->GetItemText(selectedItemId);
-
-	// 可以在这里添加一些逻辑来处理或显示 selectedText  
-	// ...  
-	char sNodeID[1024] = {'\0'};
-	memcpy_s(sNodeID, 1024, selectedText.c_str(), selectedText.length());
-
-	Browse_nodes(m_uaClient, UA_NODEID_STRING(2, sNodeID), selectedItemId);
-	// 在选中节点下添加子节点  
-	//wxTreeItemId newItemId = m_treeCtrl->AppendItem(selectedItemId, wxT("新子节点"));
-
-	// 可选：设置新子节点的其他属性，如图像、数据等  
-	// ...  
-
-	// 展开包含新子节点的父节点  
-	m_treeCtrl->Expand(selectedItemId);
-}
+//// 创建一个自定义的wxTreeItemData派生类实例  
+//MyTreeItemData* myData = new MyTreeItemData(/* 构造函数参数 */);
+//
+//// 假设你已经有了一个有效的wxTreeItemId叫做itemId  
+//treeCtrl->SetItemData(itemId, myData);
+//
+//// ...  
+//
+//// 稍后在程序的某个地方，你想获取这个数据  
+//wxTreeItemData* retrievedData = treeCtrl->GetItemData(itemId);
+//if (retrievedData) {
+//	MyTreeItemData* myRetrievedData = dynamic_cast<MyTreeItemData*>(retrievedData);
+//	if (myRetrievedData) {
+//		// 现在你可以安全地使用myRetrievedData了  
+//	}
+// 示例中的MyTreeItemData是一个假设的类，它应该继承自wxTreeItemData。你需要根据你的具体需求来实现这个类。
+//}

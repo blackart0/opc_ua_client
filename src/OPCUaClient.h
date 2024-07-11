@@ -45,7 +45,7 @@ private:
     void OnTreeSelChanged(wxTreeEvent& event);
 
     void Browse_nodes(UA_Client* client, UA_NodeId nodeId, wxTreeItemId itemId);
-    void TreeAddNodes();
+    void GetServerName();
     UA_Client* m_uaClient = nullptr;
     int m_iFontSize = 9;
     wxString m_sHost = "";
