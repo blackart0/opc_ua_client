@@ -267,6 +267,8 @@ void MyFrame::Browse_nodes(UA_Client* client, UA_NodeId nodeId, wxTreeItemId ite
 	}
 
 	UA_BrowseResponse bResp = UA_Client_Service_browse(m_uaClient, bReq); // 开始遍历
+	UA_ReferenceDescription* ref = nullptr;
+
 	if (bResp.responseHeader.serviceResult == UA_STATUSCODE_GOOD) // 判断遍历结果
 	{
 		m_gridObjs->AppendCols(3);
@@ -283,7 +285,7 @@ void MyFrame::Browse_nodes(UA_Client* client, UA_NodeId nodeId, wxTreeItemId ite
 		char s2[1024] = { "\0" };
 		for (size_t i = 0; i < bResp.resultsSize; ++i) {
 			for (size_t j = 0; j < bResp.results[i].referencesSize; ++j) {
-				UA_ReferenceDescription* ref = &(bResp.results[i].references[j]);
+				ref = &(bResp.results[i].references[j]);
 				m_gridObjs->AppendRows();
 				if (ref->nodeId.nodeId.identifierType == UA_NODEIDTYPE_NUMERIC) {
 					memset(s1, 0, 1024);
@@ -308,8 +310,8 @@ void MyFrame::Browse_nodes(UA_Client* client, UA_NodeId nodeId, wxTreeItemId ite
 			}
 		}
 	}
-
-	//UA_BrowseRequest_clear(&bReq);
+	delete ref;
+	UA_BrowseRequest_clear(&bReq);
 
 	UA_BrowseResponse_clear(&bResp);
 }
@@ -334,7 +336,7 @@ void MyFrame::OnBtnGetValue(wxCommandEvent& event)
 	else {
 		wxLogMessage(L"XPY.DK.R101 未取到数据(信号非GOOD)");
 	}
-	UA_BuildInfo;
+	//UA_BuildInfo;
 	//---------------------------------------------------------------------------------------------------------------------------------
 	// 0,2260,name:BuildInfo,UA_BuildInfo,type:UA_TYPES_BUILDINFO
 	//---------------------------------------------------------------------------------------------------------------------------------
